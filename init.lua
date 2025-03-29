@@ -215,6 +215,12 @@ if not (vim.uv or vim.loop).fs_stat(lazypath) then
 end ---@diagnostic disable-next-line: undefined-field
 vim.opt.rtp:prepend(lazypath)
 
+-- Auto format for JSON locale files
+vim.api.nvim_create_autocmd('BufWritePost', {
+  pattern = '**/locales/**/*.json',
+  command = 'silent! %!jq -S .',
+})
+
 -- [[ Configure and install plugins ]]
 --
 --  To check the current status of your plugins, run
