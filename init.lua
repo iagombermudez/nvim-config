@@ -265,12 +265,6 @@ require('lazy').setup({
     },
   },
   {
-    'supermaven-inc/supermaven-nvim',
-    config = function()
-      require('supermaven-nvim').setup {}
-    end,
-  },
-  {
     'tpope/vim-fugitive',
   },
   {
@@ -520,6 +514,85 @@ require('lazy').setup({
       --    That is to say, every time a new file is opened that is associated with
       --    an lsp (for example, opening `main.rs` is associated with `rust_analyzer`) this
       --    function will be executed to configure the current buffer
+
+      local lspconfig = require 'lspconfig'
+
+      -- https://github.com/tailwindlabs/tailwindcss-intellisense/issues/737
+      lspconfig.tailwindcss.setup {
+        --on_attach = on_attach,
+        --flags = lsp_flags,
+
+        filetypes = {
+          'aspnetcorerazor',
+          'astro',
+          'astro-markdown',
+          'blade',
+          'clojure',
+          'django-html',
+          'htmldjango',
+          'edge',
+          'eelixir',
+          'elixir',
+          'ejs',
+          'erb',
+          'eruby',
+          'gohtml',
+          'haml',
+          'handlebars',
+          'hbs',
+          'html',
+          'html-eex',
+          'heex',
+          'jade',
+          'leaf',
+          'liquid',
+          'markdown',
+          'mdx',
+          'mustache',
+          'njk',
+          'nunjucks',
+          'php',
+          'razor',
+          'slim',
+          'twig',
+          'css',
+          'less',
+          'postcss',
+          'sass',
+          'scss',
+          'stylus',
+          'sugarss',
+          'javascript',
+          'javascriptreact',
+          'reason',
+          'rescript',
+          'typescript',
+          'typescriptreact',
+          'vue',
+          'svelte',
+          'ruby',
+        },
+        init_options = {
+          userLanguages = {
+            ruby = 'php',
+          },
+        },
+        settings = {
+          tailwindCSS = {
+            experimental = {
+              classRegex = {
+                [[class= "([^"]*)]],
+                [[class: "([^"]*)]],
+                [[class= '([^"]*)]],
+                [[class: '([^"]*)]],
+                '~H""".*class="([^"]*)".*"""',
+                '~F""".*class="([^"]*)".*"""',
+              },
+            },
+          },
+        },
+      }
+
       vim.api.nvim_create_autocmd('LspAttach', {
         group = vim.api.nvim_create_augroup('kickstart-lsp-attach', { clear = true }),
         callback = function(event)
@@ -649,7 +722,7 @@ require('lazy').setup({
         --
         -- But for many setups, the LSP (`ts_ls`) will work just fine
         ts_ls = {},
-        --
+        ruby_lsp = {},
 
         lua_ls = {
           -- cmd = { ... },
@@ -873,7 +946,7 @@ require('lazy').setup({
       -- Load the colorscheme here.
       -- Like many other themes, this one has different styles, and you could load
       -- any other, such as 'tokyonight-storm', 'tokyonight-moon', or 'tokyonight-day'.
-      vim.cmd.colorscheme 'default'
+      vim.cmd.colorscheme 'tokyonight'
 
       -- You can configure highlights by doing something like:
       vim.cmd.hi 'Comment gui=none'
