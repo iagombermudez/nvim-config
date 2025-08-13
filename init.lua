@@ -89,7 +89,8 @@ P.S. You can delete this when you're done too. It's your config now! :)
 --  NOTE: Must happen before plugins are loaded (otherwise wrong leader will be used)
 vim.g.mapleader = ' '
 vim.g.maplocalleader = ' '
-
+vim.g.lazyvim_ruby_lsp = 'ruby_lsp'
+vim.g.lazyvim_ruby_lsp = 'ruby_lsp'
 -- Set to true if you have a Nerd Font installed and selected in the terminal
 vim.g.have_nerd_font = true
 
@@ -102,7 +103,7 @@ vim.g.have_nerd_font = true
 vim.opt.number = true
 -- You can also add relative line numbers, to help with jumping.
 --  Experiment for yourself to see if you like it!
-vim.opt.relativenumber = false
+vim.opt.relativenumber = true
 
 -- Enable mouse mode, can be useful for resizing splits for example!
 vim.opt.mouse = 'a'
@@ -225,6 +226,14 @@ vim.api.nvim_create_autocmd('BufWritePost', {
   command = 'silent! %!jq -S .',
 })
 
+-- Auto format for tailwind classes in embedded Ruby files
+vim.api.nvim_create_autocmd('BufWritePost', {
+  pattern = '*.erb',
+  callback = function()
+    vim.cmd 'TailwindSort'
+  end,
+})
+
 -- [[ Configure and install plugins ]]
 --
 --  To check the current status of your plugins, run
@@ -254,21 +263,30 @@ require('lazy').setup({
   -- See `:help gitsigns` to understand what the configuration keys do
   { -- Adds git related signs to the gutter, as well as utilities for managing changes
     'lewis6991/gitsigns.nvim',
-    opts = {
-      signs = {
-        add = { text = '+' },
-        change = { text = '~' },
-        delete = { text = '_' },
-        topdelete = { text = '‾' },
-        changedelete = { text = '~' },
-      },
-    },
+    opts = {},
   },
   {
     'tpope/vim-fugitive',
   },
   {
     'ThePrimeagen/vim-be-good',
+  },
+  {
+    'supermaven-inc/supermaven-nvim',
+    config = function()
+      require('supermaven-nvim').setup {}
+    end,
+  },
+  {
+    'luckasRanarison/tailwind-tools.nvim',
+    name = 'tailwind-tools',
+    build = ':UpdateRemotePlugins',
+    dependencies = {
+      'nvim-treesitter/nvim-treesitter',
+      'nvim-telescope/telescope.nvim', -- optional
+      'neovim/nvim-lspconfig', -- optional
+    },
+    opts = {}, -- your configuration
   },
 
   -- NOTE: Plugins can also be configured to run Lua code when they are loaded.
@@ -352,7 +370,7 @@ require('lazy').setup({
   { -- Fuzzy Finder (files, lsp, etc)
     'nvim-telescope/telescope.nvim',
     event = 'VimEnter',
-    branch = '0.1.x',
+    branch = '0.1.8',
     dependencies = {
       'nvim-lua/plenary.nvim',
       { -- If encountering errors, see telescope-fzf-native README for installation instructions
@@ -403,6 +421,7 @@ require('lazy').setup({
           --   mappings = {
           --     i = { ['<c-enter>'] = 'to_fuzzy_refine' },
           --   },
+          path_display = { 'truncate' },
         },
         -- pickers = {}
         extensions = {
@@ -474,7 +493,7 @@ require('lazy').setup({
       -- Automatically install LSPs and related tools to stdpath for Neovim
       -- Mason must be loaded before its dependents so we need to set it up here.
       -- NOTE: `opts = {}` is the same as calling `require('mason').setup({})`
-      { 'williamboman/mason.nvim', opts = {} },
+      { 'williamboman/mason.nvim', opts = { ensure_installed = { 'erb-formatter', 'rubocop', 'erb-lint' } } },
       'williamboman/mason-lspconfig.nvim',
       'WhoIsSethDaniel/mason-tool-installer.nvim',
 
@@ -514,84 +533,6 @@ require('lazy').setup({
       --    That is to say, every time a new file is opened that is associated with
       --    an lsp (for example, opening `main.rs` is associated with `rust_analyzer`) this
       --    function will be executed to configure the current buffer
-
-      local lspconfig = require 'lspconfig'
-
-      -- https://github.com/tailwindlabs/tailwindcss-intellisense/issues/737
-      lspconfig.tailwindcss.setup {
-        --on_attach = on_attach,
-        --flags = lsp_flags,
-
-        filetypes = {
-          'aspnetcorerazor',
-          'astro',
-          'astro-markdown',
-          'blade',
-          'clojure',
-          'django-html',
-          'htmldjango',
-          'edge',
-          'eelixir',
-          'elixir',
-          'ejs',
-          'erb',
-          'eruby',
-          'gohtml',
-          'haml',
-          'handlebars',
-          'hbs',
-          'html',
-          'html-eex',
-          'heex',
-          'jade',
-          'leaf',
-          'liquid',
-          'markdown',
-          'mdx',
-          'mustache',
-          'njk',
-          'nunjucks',
-          'php',
-          'razor',
-          'slim',
-          'twig',
-          'css',
-          'less',
-          'postcss',
-          'sass',
-          'scss',
-          'stylus',
-          'sugarss',
-          'javascript',
-          'javascriptreact',
-          'reason',
-          'rescript',
-          'typescript',
-          'typescriptreact',
-          'vue',
-          'svelte',
-          'ruby',
-        },
-        init_options = {
-          userLanguages = {
-            ruby = 'php',
-          },
-        },
-        settings = {
-          tailwindCSS = {
-            experimental = {
-              classRegex = {
-                [[class= "([^"]*)]],
-                [[class: "([^"]*)]],
-                [[class= '([^"]*)]],
-                [[class: '([^"]*)]],
-                '~H""".*class="([^"]*)".*"""',
-                '~F""".*class="([^"]*)".*"""',
-              },
-            },
-          },
-        },
-      }
 
       vim.api.nvim_create_autocmd('LspAttach', {
         group = vim.api.nvim_create_augroup('kickstart-lsp-attach', { clear = true }),
@@ -722,7 +663,20 @@ require('lazy').setup({
         --
         -- But for many setups, the LSP (`ts_ls`) will work just fine
         ts_ls = {},
-        ruby_lsp = {},
+        ruby_lsp = {
+          enabled = true,
+        },
+        standardrb = {
+          enabled = false,
+        },
+        tailwindcss = {
+          -- exclude a filetype from the default_config
+          filetypes_exclude = { 'markdown' },
+          -- add additional filetypes to the default_config
+          filetypes_include = {},
+          -- to fully override the default_config, change the below
+          -- filetypes = {}
+        },
 
         lua_ls = {
           -- cmd = { ... },
@@ -814,6 +768,8 @@ require('lazy').setup({
         -- You can use 'stop_after_first' to run the first available formatter from the list
         javascript = { 'prettierd', 'prettier', stop_after_first = true },
         typescriptreact = { 'prettierd', 'prettier', stop_after_first = true },
+        ruby = { 'rubocop', 'erb_format', stop_after_first = true },
+        eruby = { 'erb_format' },
         typescript = { 'prettierd', 'prettier', stop_after_first = true },
       },
     },
@@ -934,6 +890,9 @@ require('lazy').setup({
       }
     end,
   },
+  {
+    'neanias/everforest-nvim',
+  },
 
   { -- You can easily change to a different colorscheme.
     -- Change the name of the colorscheme plugin below, and then
@@ -946,7 +905,7 @@ require('lazy').setup({
       -- Load the colorscheme here.
       -- Like many other themes, this one has different styles, and you could load
       -- any other, such as 'tokyonight-storm', 'tokyonight-moon', or 'tokyonight-day'.
-      vim.cmd.colorscheme 'tokyonight'
+      vim.cmd.colorscheme 'everforest'
 
       -- You can configure highlights by doing something like:
       vim.cmd.hi 'Comment gui=none'
@@ -999,24 +958,33 @@ require('lazy').setup({
     main = 'nvim-treesitter.configs', -- Sets main module to use for opts
     -- [[ Configure Treesitter ]] See `:help nvim-treesitter`
     opts = {
-      ensure_installed = { 'bash', 'c', 'diff', 'html', 'lua', 'luadoc', 'markdown', 'markdown_inline', 'query', 'vim', 'vimdoc' },
+      ensure_installed = {
+        'bash',
+        'embedded_template',
+        'c',
+        'diff',
+        'html',
+        'lua',
+        'luadoc',
+        'markdown',
+        'markdown_inline',
+        'query',
+        'vim',
+        'ruby',
+        'vimdoc',
+        'typescript',
+      },
+      endwise = { enable = true },
       -- Autoinstall languages that are not installed
       auto_install = true,
       highlight = {
         enable = true,
         -- Some languages depend on vim's regex highlighting system (such as Ruby) for indent rules.
-        --  If you are experiencing weird indenting issues, add the language to
-        --  the list of additional_vim_regex_highlighting and disabled languages for indent.
-        additional_vim_regex_highlighting = { 'ruby' },
+        --    - Incremental selection: Included, see `:help nvim-treesitter-incremental-selection-mod`
+        --    - Show your current context: https://github.com/nvim-treesitter/nvim-treesitter-context
+        --    - Treesitter + textobjects: https://github.com/nvim-treesitter/nvim-treesitter-textobjects
       },
-      indent = { enable = true, disable = { 'ruby' } },
     },
-    -- There are additional nvim-treesitter modules that you can use to interact
-    -- with nvim-treesitter. You should go explore a few and see what interests you:
-    --
-    --    - Incremental selection: Included, see `:help nvim-treesitter-incremental-selection-mod`
-    --    - Show your current context: https://github.com/nvim-treesitter/nvim-treesitter-context
-    --    - Treesitter + textobjects: https://github.com/nvim-treesitter/nvim-treesitter-textobjects
   },
 
   -- The following comments only work if you have downloaded the kickstart repo, not just copy pasted the
